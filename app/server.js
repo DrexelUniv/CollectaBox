@@ -6,6 +6,12 @@ const { hashPassword, validatePassword } = require("./passwordUtil");
 const port = 3000;
 const hostname = "localhost";
 
+const path = require("path");
+const fs = require("fs");
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
 const env = require("../env.json");
 const Pool = pg.Pool;
 const pool = new Pool(env);
@@ -21,6 +27,16 @@ pool.connect()
 
 app.use(express.json());
 app.use(express.static("public"));
+
+const pages = {
+    auctions:      { view: "auctions", title: "Auctions" },
+    trade:         { view: "trade",    title: "Trade" },
+    friends:       { view: "friends",  title: "Friends" },
+    notifications: { view: "notif",    title: "Notifications" },
+    account:       { view: "account",  title: "Profile" },
+    listings:      { view: "listings", title: "My Listings" },
+    settings:      { view: "settings", title: "Settings" }
+};
 
 // signup
 app.post("/signup", async (req, res) => {
@@ -48,7 +64,7 @@ app.post("/signup", async (req, res) => {
         const hashedPassword = await hashPassword(password);
 
         await pool.query(
-            `Insert into accounts (username, email, password)
+            `Insert into accounts (username, email, password_hash)
             values ($1, $2, $3)`,
             [username, email, hashedPassword]
         );
@@ -101,7 +117,7 @@ app.post("/login", async (req,res) =>{
         
         const validPassword = await validatePassword(
             password,
-            account.password
+            account.password_hash
         )
 
         console.log(validPassword);
@@ -145,7 +161,7 @@ app.post("/reset-password", async (req, res) => {
         const hashedPassword = await hashPassword(body.password);
 
         pool.query(
-            `Update accounts set password = $1 where email = $2`,
+            `Update accounts set password_hash = $1 where email = $2`,
             [hashedPassword, body.email]
         )
 
@@ -159,7 +175,6 @@ app.post("/reset-password", async (req, res) => {
         res.status(500).json({ message: "Could not reset password" });
     };
 });
-
 
 app.get("/items", async (req, res) => {
     try {
@@ -176,6 +191,22 @@ app.get("/items", async (req, res) => {
             message: "Could not retrieve collectibles"
         });
     }
+});
+
+
+Object.entries(pages).forEach(([route, { view, title }]) => {
+    app.get("/" + route, (req, res) => {
+        const viewExists = fs.existsSync(path.join(__dirname, "views", view + ".ejs"));
+
+        if (viewExists) {
+            res.render(view, { active: route });
+        }
+    });
+});
+
+// logout has no session to destroy yet, so just go back to login
+app.post("/logout", (req, res) => {
+    res.redirect("/src/login.html");
 });
 
 
