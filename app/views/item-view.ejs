@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Item View</title>
+        <link rel="stylesheet" type="text/css" href="/style/style.css">
+        <link rel="stylesheet" type="text/css" href="/style/item-view.css">
+    </head>
+    <body>
+        <%- include("navbar", { active }) %>
+        <main>
+            <div class="breadcrumb">
+                breadcrumb placeholder
+            </div>
+
+            <div class="item-container">
+                <!-- left: item img --> 
+                <div class="item-img">
+                    <img src="/images/placeholder.png" alt="Item Image">
+                </div>
+
+                <!-- right: item info and buttons -->
+                <div class="item-info">
+                    <h1 id="item-name">Item Name</h1>
+
+                    <div class="item-detail">
+                        <p id="item-ip">Blind Box IP</p>
+                        <p id="item-series">Series: Series Name</p>
+                    </div>
+
+                    <div class="auction-status">
+                        <img class="auction-dot" src="/images/circle.svg" alt="">
+                        <a href="/auction-view" class="auction-link">View Auction</a>
+                    </div>
+
+                    <hr>
+                    
+                    <div class="buttons">
+                        <button class="add-collection">
+                            <img src="/images/add.svg" alt="">
+                            Add to Collection
+                        </button>
+                        <button class="add-wishlist">
+                            <img src="/images/heart.svg" alt="">
+                            Add to Wishlist
+                        </button>
+                        <button class="to-auction">
+                            <img src="/images/tag.svg" alt="">
+                            Put up for Auction
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- bottom: description -->
+            <div class="item-desc">
+                <h3>About This Item</h3>
+                <p>Item Description</p>
+            </div>
+        </main> 
+    </body>
+</html>
