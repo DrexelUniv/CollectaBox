@@ -29,13 +29,15 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const pages = {
-    auctions:      { view: "auctions", title: "Auctions" },
-    trade:         { view: "trade",    title: "Trade" },
-    friends:       { view: "friends",  title: "Friends" },
-    notifications: { view: "notif",    title: "Notifications" },
-    account:       { view: "account",  title: "Profile" },
-    listings:      { view: "listings", title: "My Listings" },
-    settings:      { view: "settings", title: "Settings" }
+    auctions:           { view: "auctions",     title: "Auctions" },
+    trade:              { view: "trade",        title: "Trade" },
+    friends:            { view: "friends",      title: "Friends" },
+    notifications:      { view: "notif",        title: "Notifications" },
+    account:            { view: "account",      title: "Profile" },
+    listings:           { view: "listings",     title: "My Listings" },
+    settings:           { view: "settings",     title: "Settings" },
+    itemView:           { view: "item-view",    title: "Item View"},
+    auctionItemView:    { view: "auction-view", title: "Auction Item View"},
 };
 
 // signup
