@@ -16,6 +16,16 @@ const env = require("../env.json");
 const Pool = pg.Pool;
 const pool = new Pool(env);
 
+const cookieParser = require("cookie-parser");
+const {
+    createSession,
+    setSessionCookie,
+    deleteSession,
+    clearSessionCookie,
+    authMiddleware,
+    startTokenCleanup
+} = require("./sessionUtil");
+
 pool.connect()
     .then(function (client) {
         console.log(`Connected to database ${env.database}`);
@@ -26,6 +36,8 @@ pool.connect()
     });
 
 app.use(express.json());
+app.use(cookieParser());
+startTokenCleanup();
 app.use(express.static("public"));
 
 const pages = {
@@ -128,9 +140,8 @@ app.post("/login", async (req,res) =>{
             });
         }
 
-        return res.status(200).json({
-            message: "Login successful",
-        });
+        setSessionCookie(res, createSession(account.id, account.username));
+        return res.status(200).json({ message: "Login successful" });
         
     } catch (error) {
         console.error("Login database error:", error);
@@ -204,11 +215,16 @@ Object.entries(pages).forEach(([route, { view, title }]) => {
     });
 });
 
-// logout has no session to destroy yet, so just go back to login
+// logout 
 app.post("/logout", (req, res) => {
+    deleteSession(req.cookies.token);
+    clearSessionCookie(res); 
     res.redirect("/src/login.html");
 });
 
+app.get("/api/session", authMiddleware, (req, res) => {
+    res.json({ username: req.session.username });
+});
 
 app.listen(port, hostname, () => {
     console.log(`Listening at: http://${hostname}:${port}`);
