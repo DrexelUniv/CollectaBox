@@ -7,7 +7,12 @@ const inputFile = process.argv[2] || "./collectibles.example.json";
 const collectibles = require(path.resolve(__dirname, inputFile));
 
 
-const pool = new Pool(env);
+const pool = new Pool({
+    ...env,
+    ssl: env.host.includes("render.com")
+        ? { rejectUnauthorized: true }
+        : false
+});
 
 async function importCollectibles() {
     try {
