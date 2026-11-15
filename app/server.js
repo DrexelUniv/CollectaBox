@@ -193,6 +193,38 @@ app.post("/logout", (req, res) => {
     res.redirect("/src/login.html");
 });
 
+
+// no user session yet, so unsure how to handle adding to collection
+app.post("/itemView", async (req, res) => {
+    const { itemID } = req.body;
+    
+    res.json({
+        success: true,
+        message: "add to collection placeholder"
+    });
+})
+
+app.post("/auctionItemView", async (req, res) => {
+    try {
+        const { bid } = req.body;
+
+        console.log("Received bid:", bid);
+
+        res.status(200).json({
+            success: true,
+            message: "Place bid placeholder"
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to place bid."
+        });
+    }
+});
+
 app.listen(port, hostname, () => {
     console.log(`Listening at: http://${hostname}:${port}`);
 });

@@ -16,7 +16,7 @@
             <div class="item-container">
                 <!-- left: item img --> 
                 <div class="item-img">
-                    <img src="/images/placeholder.png" alt="Item Image">
+                    <img id="image" src="/images/placeholder.png" alt="Item Image">
                 </div>
 
                 <!-- right: bid info and buttons -->
@@ -29,8 +29,9 @@
                         <h1 id="curr-price">$8.00</h1>
                         <div>
                             <h3>Place Your Bid</h3>
-                            <input class="bid-amount" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.00" required>
+                            <input class="bid-amount" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="0.00" required>
                         </div>
+                        <div id="message"></div>
                     </div>
 
                     <hr>
@@ -46,10 +47,13 @@
                 </div>
             </div>
             <!-- bottom: description -->
-            <div class="item-desc">
+            <div class="item-desc-section">
                 <h3>About This Item</h3>
-                <p>Item Description</p>
+                <p id="item-desc">Item Description</p>
             </div>
         </main> 
+        <script
+            src="/js/auction-view.js">
+        </script>
     </body>
 </html>

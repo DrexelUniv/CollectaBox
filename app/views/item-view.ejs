@@ -16,7 +16,7 @@
             <div class="item-container">
                 <!-- left: item img --> 
                 <div class="item-img">
-                    <img src="/images/placeholder.png" alt="Item Image">
+                    <img id="image" src="/images/placeholder.png" alt="Item Image">
                 </div>
 
                 <!-- right: item info and buttons -->
@@ -30,7 +30,7 @@
 
                     <div class="auction-status">
                         <img class="auction-dot" src="/images/circle.svg" alt="">
-                        <a href="/auction-view" class="auction-link">View Auction</a>
+                        <a href="/auctionItemView" class="auction-link">View Auction</a>
                     </div>
 
                     <hr>
@@ -57,5 +57,14 @@
                 <p>Item Description</p>
             </div>
         </main> 
+        <div id="form-overlay" class="overlay">
+            <div id="form-container">
+                <h1>placeholder</h1>
+                <p>overlay for auction form</p>
+            </div>
+        </div>
+        <script
+            src="/js/item-view.js">
+        </script>
     </body>
 </html>
