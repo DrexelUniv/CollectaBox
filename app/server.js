@@ -41,13 +41,15 @@ startTokenCleanup();
 app.use(express.static("public"));
 
 const pages = {
-    auctions:      { view: "auctions", title: "Auctions" },
-    trade:         { view: "trade",    title: "Trade" },
-    friends:       { view: "friends",  title: "Friends" },
-    notifications: { view: "notif",    title: "Notifications" },
-    account:       { view: "account",  title: "Profile" },
-    listings:      { view: "listings", title: "My Listings" },
-    settings:      { view: "settings", title: "Settings" }
+    auctions:           { view: "auctions",     title: "Auctions" },
+    trade:              { view: "trade",        title: "Trade" },
+    friends:            { view: "friends",      title: "Friends" },
+    notifications:      { view: "notif",        title: "Notifications" },
+    account:            { view: "account",      title: "Profile" },
+    listings:           { view: "listings",     title: "My Listings" },
+    settings:           { view: "settings",     title: "Settings" },
+    itemView:           { view: "item-view",    title: "Item View"},
+    auctionItemView:    { view: "auction-view", title: "Auction Item View"},
 };
 
 // signup
@@ -224,6 +226,38 @@ app.post("/logout", (req, res) => {
 
 app.get("/api/session", authMiddleware, (req, res) => {
     res.json({ username: req.session.username });
+});
+
+
+// no user session yet, so unsure how to handle adding to collection
+app.post("/itemView", async (req, res) => {
+    const { itemID } = req.body;
+    
+    res.json({
+        success: true,
+        message: "add to collection placeholder"
+    });
+})
+
+app.post("/auctionItemView", async (req, res) => {
+    try {
+        const { bid } = req.body;
+
+        console.log("Received bid:", bid);
+
+        res.status(200).json({
+            success: true,
+            message: "Place bid placeholder"
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to place bid."
+        });
+    }
 });
 
 app.listen(port, hostname, () => {
