@@ -7,14 +7,26 @@ CREATE TABLE IF NOT EXISTS accounts (
                                         created_at    timestamptz NOT NULL DEFAULT now()
 );
 
+
 -- Catalog of item types
 CREATE TABLE IF NOT EXISTS items (
-                                     id      serial PRIMARY KEY,
-                                     name    varchar(25) NOT NULL,
-                                     brand   varchar(25),
-                                     series  varchar(25),
-                                     quality varchar(25)
+    id serial PRIMARY KEY,
+    name varchar(25) NOT NULL,
+    brand varchar(25),
+    series varchar(25),
+    quality varchar(25)
 );
+
+-- Extend item fields for collectible catalog data
+ALTER TABLE items
+    ALTER COLUMN name TYPE varchar(150),
+    ALTER COLUMN brand TYPE varchar(100),
+    ALTER COLUMN series TYPE varchar(150);
+
+ALTER TABLE items
+    ADD COLUMN IF NOT EXISTS image TEXT,
+    ADD COLUMN IF NOT EXISTS rarity varchar(25);
+
 
 -- The many-to-many: one row = one owned copy of an item
 CREATE TABLE IF NOT EXISTS collection_items (
