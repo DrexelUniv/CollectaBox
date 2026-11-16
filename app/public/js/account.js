@@ -1,46 +1,34 @@
-document.addEventListener("DOMContentLoaded", () =>{
-    let savedUser = localStorage.getItem("currentusername");
-    let userdisplay = document.getElementById("user-name");
+document.addEventListener("DOMContentLoaded", () => {
+    const displayBio = document.getElementById("bio");
+    if (!displayBio) return;
 
-    if (userdisplay && savedUser) {
-        userdisplay.textContent = "@" + savedUser;
-    }else if (userdisplay) {
-        //default username display
-        userdisplay.textContent = "@guest_user"; 
-    }
-
-  let displayEmail = document.getElementById("email");
-  let savedEmail = localStorage.getItem("currEmail");
-
-  if (displayEmail){
-    if(savedEmail){
-        displayEmail.textContent = savedEmail;
-    } else{
-        displayEmail.textContent = "username@email.com";
-
-    }
-  }
-
-    let displayBio = document.getElementById("bio");
-    let newBio = localStorage.getItem("currBio");
-
-  if (displayBio && newBio){
-    displayBio.textContent = newBio; 
-  }
-
-  if(displayBio){
-    displayBio.style.cursor = "pointer"; 
+    displayBio.style.cursor = "pointer";
     displayBio.title = "Change bio!";
 
-    //https://www.w3schools.com/jsref/met_win_prompt.asp
-    //https://www.w3schools.com/jsref/prop_win_localstorage.asp
+    displayBio.addEventListener("click", async () => {
+        const current = displayBio.textContent === "No bio yet" ? "" : displayBio.textContent;
+        const newBio = prompt("Create new bio:", current);
 
-    displayBio.addEventListener("click", () =>{
-        let newInfo= prompt("Create new bio:", displayBio.textContent);
-        if(newInfo){
-            displayBio.textContent = newInfo;
-            localStorage.setItem("currBio", newInfo); 
+        // null = user cancelled; empty string is allowed and clears the bio
+        if (newBio === null) return;
+
+        try {
+            const response = await fetch("/account/bio", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ bio: newBio })
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.message || "Could not update bio");
+                return;
+            }
+
+            displayBio.textContent = data.bio || "No bio yet";
+        } catch (error) {
+            console.error(error);
+            alert("Something went wrong.");
         }
     });
-    }
 });

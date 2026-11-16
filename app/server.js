@@ -78,7 +78,6 @@ const pages = {
     trade:           { view: "trade",        title: "Trade" },
     friends:         { view: "friends",      title: "Friends" },
     notifications:   { view: "notif",        title: "Notifications" },
-    account:         { view: "account",      title: "Profile" },
     listings:        { view: "listings",     title: "My Listings" },
     settings:        { view: "settings",     title: "Settings" },
     itemView:        { view: "item-view",    title: "Item View" },
@@ -162,6 +161,28 @@ app.post("/signup", (req, res, next) => {
         }
 
         return res.status(500).json({ message: "Could not create account" });
+    }
+});
+
+// account
+app.get("/account", requireLogin, async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT username, email, profile_pic_id, bio FROM accounts WHERE id = $1",
+            [req.session.accountId]
+        );
+
+        if (result.rows.length === 0) {
+            // account was deleted while the session was still active
+            deleteSession(req.cookies.token);
+            clearSessionCookie(res);
+            return res.redirect(LOGIN_PAGE);
+        }
+
+        res.render("account", { active: "account", account: result.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Could not load your account");
     }
 });
 

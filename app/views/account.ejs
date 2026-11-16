@@ -2,59 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-  <title>My Account</title>
-  <link rel="stylesheet" href="/style/style.css" />
-  <link rel="stylesheet" href="/style/account.css" />
+    <title>My Account</title>
+    <link rel="stylesheet" href="/style/style.css" />
+    <link rel="stylesheet" href="/style/account.css" />
 </head>
 <body>
-    
-    <!-- Universal Navigation Bar-->
-    <%- include("navbar", { active }) %>
 
-    <header>
+<!-- Universal Navigation Bar -->
+<%- include("navbar", { active }) %>
+
+<main>
+    <div id="profile-header">
+        <img src="<%= account.profile_pic_id ? '/images/profile_' + account.profile_pic_id + '.png' : '/images/profile_pic_blank.png' %>"
+             alt="Profile Picture" class="pfp-image"
+             onerror="this.onerror=null; this.src='/images/profile_pic_blank.png'" />
         <div>
-            <div>LOGO</div>
+            <h1 id="user-name">@<%= account.username %></h1>
+            <p id="email"><%= account.email %></p>
+            <p id="bio"><%= account.bio || "No bio yet" %></p>
         </div>
-
-    </header>
+    </div>
 
     <hr>
 
-    <!--Main Account Content-->
+    <div id="profile-navigation">
+        <h2>Profile Navigation</h2>
+        <ul>
+            <li><a href="/index">My Collection</a></li>
+            <li><a href="/trade">Trade Requests</a></li>
+            <li><a href="/listings">Listings &amp; Auctions</a></li>
+            <li><a href="/settings">Settings</a></li>
+        </ul>
+    </div>
+</main>
 
-    <main>
-        <div id="profile-header">
-            <img src="" alt="Profile Picture" class="pfp-image" />
-            <div>
-                <h1 id="user-name">@username</h1>
-                <p id="email">user email</p>
-                <p id="bio">Add Bio Here</p>
-            </div>
-        </div>
-
-        <hr>
-
-        <div id="profile-navigation">
-            <h2>Profile Navigation</h2>
-            <ul>
-                <li>
-                    <a href="mycollection.html">My Collection</a>
-                </li>
-                <li>
-                    <a href="trade.html">Trade Requests</a>
-                </li>
-                <li>
-                   <a href="listings.html">Lisings & Auctions</a> 
-                </li>
-                <li>
-                    <a href="settings.html">Settings</a>
-                </li>
-            </ul>
-        </div>
-    </main>
-    <script
-        src="../public/js/account.js">
-    </script>
+<script src="/js/account.js"></script>
 </body>
 </html>
-
