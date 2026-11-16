@@ -26,10 +26,13 @@
     </nav>
 
     <div class="profile-menu">
-<!--        Blank for now. To add the picture later, put this inside the button:-->
         <button type="button" id="profile-btn" class="profile-btn"
                 aria-haspopup="true" aria-expanded="false" aria-controls="profile-dropdown"
-                aria-label="Open profile menu"></button>
+                aria-label="Open profile menu">
+            <img src="<%= (locals.user && user.profilePicId) ? '/images/profile_' + user.profilePicId + '.png' : '/images/profile_pic_blank.png' %>"
+                 alt=""
+                 onerror="this.onerror=null; this.src='/images/profile_pic_blank.png'">
+        </button>
 
         <ul id="profile-dropdown" class="dropdown" hidden>
             <li><a href="/account">View Profile</a></li>

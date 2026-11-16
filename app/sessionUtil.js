@@ -15,11 +15,12 @@ function generateToken() {
     return crypto.randomBytes(32).toString("hex");
 }
 
-function createSession(accountId, username) {
+function createSession(accountId, username, profilePicId) {
     const token = generateToken();
     tokenStore[token] = {
-        accountId: accountId,
-        username: username,
+        accountId,
+        username,
+        profilePicId,
         createdAt: Date.now()
     };
     return token;
