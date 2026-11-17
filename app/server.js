@@ -59,7 +59,7 @@ function profilePicPath(id) {
 app.use(express.json());
 app.use(cookieParser());
 startTokenCleanup();
-app.use(express.static("public"));
+app.use(express.static(path.join(__dirname, "public")));
 
 // Page middleware: redirects to login instead of returning JSON,
 // and exposes the session as `user` in every EJS template.
@@ -135,7 +135,7 @@ app.post("/signup", (req, res, next) => {
         const inserted = await pool.query(
             `INSERT INTO accounts (username, email, password_hash, profile_pic_id)
              VALUES ($1, $2, $3, $4)
-             RETURNING id`,
+                 RETURNING id`,
             [username, email, hashedPassword, picId]
         );
 
