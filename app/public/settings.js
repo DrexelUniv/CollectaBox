@@ -74,6 +74,39 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                 });
             }
+            let submitPfp = document.getElementById("submit-pfp");
+let pfpFile = document.getElementById("pfp-file");
+let pfpPreview = document.getElementById("pfp-preview");
+let pfpMsg = document.getElementById("pfp-msg");
 
+// Optional: Show a live preview inside the modal as soon as they pick a file
+if (pfpFile && pfpPreview) {
+    pfpFile.addEventListener("change", () => {
+        let file = pfpFile.files[0];
+        if (file) {
+            let reader = new FileReader();
+            reader.onload = (e) => {
+                pfpPreview.style.backgroundImage = `url(${e.target.result})`;
+                pfpPreview.style.backgroundSize = "cover";
+                pfpPreview.style.backgroundPosition = "center";
+                pfpPreview.textContent = "";
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+// Save to localStorage when "Change Profile Picture" is clicked
+if (submitPfp && pfpFile) {
+    submitPfp.addEventListener("click", () => {
+        if (pfpMsg) pfpMsg.textContent = "";
+        let file = pfpFile.files[0];
+
+        if (!file) {
+            if (pfpMsg) pfpMsg.textContent = "Please select an image first";
+            return;
+        }
+    });
+}
 
 });
