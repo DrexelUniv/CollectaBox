@@ -31,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Something went wrong.");
         }
     });
-    }
+    
     document.addEventListener("DOMContentLoaded", () => {
         let savedPfp = localStorage.getItem("currPfp");
         let pfpImages = document.querySelectorAll(".pfp-image");
@@ -46,7 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     img.style.backgroundPosition = "center";
                     img.textContent = "";
                 }
+            
             });
         }
+    
     });
 });
