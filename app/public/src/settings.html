@@ -10,18 +10,58 @@
     
     <!-- Universal Navigation Bar-->
 
-    <header>
-        <div>
-            <div>LOGO</div>
-        </div>
+    <header class="settings-bar">
+        <a href="account.html" class="go-back">
+            <img src="images/back-arrow.png" alt="Go Back" class="back-icon" />
+            Return to Profile View
+        </a>
+        
 
     </header>
 
     <main>
         <div id="profile-header">
-                <h1 id="display-name">Test Settings Page</h1>
+                <h1 id="display-name">Account Settings</h1>
 
         </div>
+
+        <nav class="settings-options">
+            <button type="button" id="change-pfp-btn" class="option-row">Change Profile Picture</button>
+            <button type="button" id="change-username-btn" class="option-row">Change Username</button>
+            <a href="reset-password.html" id="reset-password-link" class="option-row">Reset Password</a>
+        </nav>
+
+        <div class="logout-container">
+            <button type="button" id="logout-btn" class="logout-btn">&#10162; Log Out</button>
+        </div>
+
+        <!-- Change PFP Window -->
+        <div id="pfp-window" class="window">
+        <div class="window-content">
+            <span id="close-pfp" class="close">Close</span>
+            <h2>Change PFP</h2>
+            <div id="pfp-preview" class="pfp-circle">PFP</div>
+            <input type="file" id="pfp-file" accept="image/*">
+            <button type="button" id="submit-pfp">Change Profile Picture</button>
+        </div>
+    </div>
+
+    <!-- Change Username Window -->
+    <div id="username-window" class="window">
+        <div class="window-content">
+            <span id="close-username" class="close">Close</span>
+            <h2>Change Username</h2>
+            <label>New Username:</label>
+            <input type="text" id="new-user">
+            <label>Confirm New Username:</label>
+            <input type="text" id="confirm-user">
+            <p id="username-msg" style="color: red; font-size: 14px;"></p>
+            <button type="button" id="submit-username">Change Username</button>
+        </div>
+    </div>
 </main>
+ <script
+        src="settings.js">
+    </script>
 </body>
 </html>

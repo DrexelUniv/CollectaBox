@@ -31,4 +31,24 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Something went wrong.");
         }
     });
+    
+    document.addEventListener("DOMContentLoaded", () => {
+        let savedPfp = localStorage.getItem("currPfp");
+        let pfpImages = document.querySelectorAll(".pfp-image");
+
+        if (savedPfp && pfpImages.length > 0) {
+            pfpImages.forEach((img) => {
+                if (img.tagName === "IMG") {
+                    img.src = savedPfp;
+                } else {
+                    img.style.backgroundImage = `url(${savedPfp})`;
+                    img.style.backgroundSize = "cover";
+                    img.style.backgroundPosition = "center";
+                    img.textContent = "";
+                }
+            
+            });
+        }
+    
+    });
 });
