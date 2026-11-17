@@ -27,7 +27,7 @@ button.addEventListener("click", () => {
         message.textContent = result.data.message;
 
         if (result.status >= 200 && result.status < 300) {
-            window.location.href = "/index.ejs";
+            window.location.href = "/index";
         }
     }).catch((error) => {
         console.log(error);
