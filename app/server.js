@@ -19,8 +19,7 @@ const {
 } = require("./sessionUtil");
 
 const app = express();
-const port = 3000;
-const hostname = "localhost";
+const port = process.env.PORT || 3000;
 
 const LOGIN_PAGE = "/src/login.html";
 const HOME_PAGE = "/index";
@@ -344,6 +343,6 @@ Object.entries(pages).forEach(([route, { view, title }]) => {
     });
 });
 
-app.listen(port, hostname, () => {
-    console.log(`Listening at: http://${hostname}:${port}`);
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Listening on port ${port}`);
 });
