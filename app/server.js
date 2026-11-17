@@ -6,9 +6,25 @@ const { hashPassword, validatePassword } = require("./passwordUtil");
 const port = 3000;
 const hostname = "localhost";
 
+const path = require("path");
+const fs = require("fs");
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
 const env = require("../env.json");
 const Pool = pg.Pool;
 const pool = new Pool(env);
+
+const cookieParser = require("cookie-parser");
+const {
+    createSession,
+    setSessionCookie,
+    deleteSession,
+    clearSessionCookie,
+    authMiddleware,
+    startTokenCleanup
+} = require("./sessionUtil");
 
 pool.connect()
     .then(function (client) {
@@ -20,7 +36,21 @@ pool.connect()
     });
 
 app.use(express.json());
+app.use(cookieParser());
+startTokenCleanup();
 app.use(express.static("public"));
+
+const pages = {
+    auctions:           { view: "auctions",     title: "Auctions" },
+    trade:              { view: "trade",        title: "Trade" },
+    friends:            { view: "friends",      title: "Friends" },
+    notifications:      { view: "notif",        title: "Notifications" },
+    account:            { view: "account",      title: "Profile" },
+    listings:           { view: "listings",     title: "My Listings" },
+    settings:           { view: "settings",     title: "Settings" },
+    itemView:           { view: "item-view",    title: "Item View"},
+    auctionItemView:    { view: "auction-view", title: "Auction Item View"},
+};
 
 // signup
 app.post("/signup", async (req, res) => {
@@ -48,7 +78,7 @@ app.post("/signup", async (req, res) => {
         const hashedPassword = await hashPassword(password);
 
         await pool.query(
-            `Insert into accounts (username, email, password)
+            `Insert into accounts (username, email, password_hash)
             values ($1, $2, $3)`,
             [username, email, hashedPassword]
         );
@@ -101,7 +131,7 @@ app.post("/login", async (req,res) =>{
         
         const validPassword = await validatePassword(
             password,
-            account.password
+            account.password_hash
         )
 
         console.log(validPassword);
@@ -112,9 +142,8 @@ app.post("/login", async (req,res) =>{
             });
         }
 
-        return res.status(200).json({
-            message: "Login successful",
-        });
+        setSessionCookie(res, createSession(account.id, account.username));
+        return res.status(200).json({ message: "Login successful" });
         
     } catch (error) {
         console.error("Login database error:", error);
@@ -145,7 +174,7 @@ app.post("/reset-password", async (req, res) => {
         const hashedPassword = await hashPassword(body.password);
 
         pool.query(
-            `Update accounts set password = $1 where email = $2`,
+            `Update accounts set password_hash = $1 where email = $2`,
             [hashedPassword, body.email]
         )
 
@@ -158,6 +187,77 @@ app.post("/reset-password", async (req, res) => {
         console.log(error);
         res.status(500).json({ message: "Could not reset password" });
     };
+});
+
+app.get("/items", async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, name, brand, series, image, rarity
+             FROM items
+             ORDER BY brand, series, name`
+        );
+
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error fetching items:", error);
+        res.status(500).json({
+            message: "Could not retrieve collectibles"
+        });
+    }
+});
+
+
+Object.entries(pages).forEach(([route, { view, title }]) => {
+    app.get("/" + route, (req, res) => {
+        const viewExists = fs.existsSync(path.join(__dirname, "views", view + ".ejs"));
+
+        if (viewExists) {
+            res.render(view, { active: route });
+        }
+    });
+});
+
+// logout 
+app.post("/logout", (req, res) => {
+    deleteSession(req.cookies.token);
+    clearSessionCookie(res); 
+    res.redirect("/src/login.html");
+});
+
+app.get("/api/session", authMiddleware, (req, res) => {
+    res.json({ username: req.session.username });
+});
+
+
+// no user session yet, so unsure how to handle adding to collection
+app.post("/itemView", async (req, res) => {
+    const { itemID } = req.body;
+    
+    res.json({
+        success: true,
+        message: "add to collection placeholder"
+    });
+})
+
+app.post("/auctionItemView", async (req, res) => {
+    try {
+        const { bid } = req.body;
+
+        console.log("Received bid:", bid);
+
+        res.status(200).json({
+            success: true,
+            message: "Place bid placeholder"
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to place bid."
+        });
+    }
 });
 
 app.listen(port, hostname, () => {
