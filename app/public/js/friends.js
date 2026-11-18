@@ -47,16 +47,44 @@ async function respond(f, action, buttons) {
     render();
 }
 
+// cancel a request I sent (shown on "Requested" cards in the Add Friends tab)
+async function cancelRequest(f, button) {
+    const row = button.parentNode;
+    const old = row.querySelector(".error");
+    if (old) old.remove();
+    button.disabled = true;
+    try {
+        const res = await fetch("/api/friends/cancel", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: f.username })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    } catch (err) {
+        console.error("Could not cancel request:", err);
+        button.disabled = false;
+        const msg = document.createElement("span");
+        msg.className = "error";
+        msg.textContent = "Couldn't cancel. Try again.";
+        row.append(msg);
+        return;
+    }
+    f.relation = "none";
+    render();
+}
+
 function initials(name) {
     return name.replace(/[^a-z0-9]/gi, " ").trim().split(/\s+/).slice(0, 2)
         .map(w => w[0]).join("").toUpperCase() || "?";
 }
 
 function card(f, mode) {
-    // pending cards hold buttons, so the card itself can't be a button
-    const b = document.createElement(mode === "pending" ? "div" : "button");
+    // cards that contain buttons can't themselves be buttons
+    const hasActions = mode === "pending" || (mode === "add" && f.relation === "sent");
+    const b = document.createElement(hasActions ? "div" : "button");
     b.className = "friend";
-    if (mode !== "pending") b.type = "button";
+    if (!hasActions) b.type = "button";
     b.title = f.username;
 
     const av = document.createElement("div");
@@ -103,6 +131,19 @@ function card(f, mode) {
         st.textContent = labels[f.relation];
         b.append(st);
 
+        if (f.relation === "sent") {
+            const row = document.createElement("div");
+            row.className = "actions";
+            const cancel = document.createElement("button");
+            cancel.type = "button";
+            cancel.className = "decline";
+            cancel.textContent = "Cancel request";
+            cancel.addEventListener("click", () => cancelRequest(f, cancel));
+            row.append(cancel);
+            b.append(row);
+            return b;
+        }
+
         b.disabled = f.relation !== "none";
         b.addEventListener("click", async () => {
             try {
@@ -113,8 +154,7 @@ function card(f, mode) {
                 });
                 if ((await res.json()).ok) {
                     f.relation = "sent";
-                    st.textContent = "Requested";
-                    b.disabled = true;
+                    render();   // re-render so the card gets its Cancel button
                 }
             } catch (err) {
                 console.error(err);
@@ -124,8 +164,7 @@ function card(f, mode) {
     }
 
     b.addEventListener("click", () => {
-        // TODO: open profile / show menu
-        console.log("Open profile:", f.username);
+        window.location.href = `/collections/${encodeURIComponent(f.username)}`;
     });
     return b;
 }
