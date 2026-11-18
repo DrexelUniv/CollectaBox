@@ -55,6 +55,12 @@ function profilePicPath(id) {
     return path.join(IMAGE_DIR, `profile_${id}.png`);
 }
 
+// public URL of a profile picture (files are saved by profilePicPath above
+// and served by express.static), or null so the page shows an initials circle
+function profilePicUrl(id) {
+    return id ? `/images/profile_${id}.png` : null;
+}
+
 app.use(express.json());
 app.use(cookieParser());
 startTokenCleanup();
@@ -73,7 +79,6 @@ function requireLogin(req, res, next) {
 const pages = {
     auctions:        { view: "auctions",     title: "Auctions" },
     trade:           { view: "trade",        title: "Trade" },
-    friends:         { view: "friends",      title: "Friends" },
     notifications:   { view: "notif",        title: "Notifications" },
     listings:        { view: "listings",     title: "My Listings" },
     settings:        { view: "settings",     title: "Settings" },
@@ -325,6 +330,7 @@ app.post("/auctionItemView", authMiddleware, async (req, res) => {
     }
 });
 
+// collections page
 app.get("/collections/:username", requireLogin, (req, res) => {
     if (req.params.username.toLowerCase() !== req.session.username.toLowerCase()) {
         return res.redirect(`/collections/${encodeURIComponent(req.session.username)}`);
@@ -332,6 +338,167 @@ app.get("/collections/:username", requireLogin, (req, res) => {
     res.render("collections", { active: "collections" });
 });
 
+// ---------------------------------------------------------------------------
+// friends
+// ---------------------------------------------------------------------------
+
+// Page: plain /friends redirects to /friends/<your username>
+app.get("/friends", requireLogin, (req, res) => {
+    res.redirect(`/friends/${encodeURIComponent(req.session.username)}`);
+});
+
+// Page: same pattern as collections
+app.get("/friends/:username", requireLogin, (req, res) => {
+    if (req.params.username.toLowerCase() !== req.session.username.toLowerCase()) {
+        return res.redirect(`/friends/${encodeURIComponent(req.session.username)}`);
+    }
+    res.render("friends", { active: "friends" });
+});
+
+// Data for the My Friends and Pending Requests tabs
+app.get("/api/friends", authMiddleware, async (req, res) => {
+    const me = req.session.accountId;
+
+    try {
+        // Accepted friends: the other person in each friendship,
+        // whichever side sent the request
+        const friends = await pool.query(
+            `SELECT a.username, a.profile_pic_id
+             FROM friendships f
+                      JOIN accounts a
+                           ON a.id = CASE WHEN f.requester_id = $1
+                                              THEN f.addressee_id
+                                          ELSE f.requester_id END
+             WHERE (f.requester_id = $1 OR f.addressee_id = $1)
+               AND f.status = 'accepted'
+             ORDER BY a.username`,
+            [me]
+        );
+
+        // Incoming requests: people who requested me
+        const pending = await pool.query(
+            `SELECT a.username, a.profile_pic_id
+             FROM friendships f
+                      JOIN accounts a ON a.id = f.requester_id
+             WHERE f.addressee_id = $1
+               AND f.status = 'pending'
+             ORDER BY a.username`,
+            [me]
+        );
+
+        const shape = r => ({
+            username: r.username,
+            photo: profilePicUrl(r.profile_pic_id)
+        });
+
+        res.json({
+            friends: friends.rows.map(shape),
+            pending: pending.rows.map(shape)
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Could not load friends" });
+    }
+});
+
+// Add Friends tab. No search text: people you have no friendship or request
+// with yet. With search text: any account whose username matches, each
+// labelled with its relation to you.
+app.get("/api/accounts/search", authMiddleware, async (req, res) => {
+    const me = req.session.accountId;
+    const q = String(req.query.q || "").trim().slice(0, 25);
+
+    // escape LIKE wildcards so "_" and "%" are matched literally
+    const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT a.username, a.profile_pic_id, f.status,
+                    (f.requester_id = $1) AS i_sent
+             FROM accounts a
+                      LEFT JOIN friendships f
+                                ON (f.requester_id = $1 AND f.addressee_id = a.id)
+                                    OR (f.addressee_id = $1 AND f.requester_id = a.id)
+             WHERE a.id <> $1
+               AND (($3::text = '' AND f.status IS NULL)
+                 OR ($3::text <> '' AND a.username ILIKE $2))
+             ORDER BY a.username
+                 LIMIT 30`,
+            [me, pattern, q]
+        );
+
+        res.json(rows.map(r => ({
+            username: r.username,
+            photo: profilePicUrl(r.profile_pic_id),
+            relation: r.status === "accepted" ? "friends"
+                : r.status === "pending" ? (r.i_sent ? "sent" : "received")
+                    : "none"
+        })));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Search failed" });
+    }
+});
+
+// Send a friend request
+app.post("/api/friends/request", authMiddleware, async (req, res) => {
+    const target = req.body && req.body.username;
+    if (typeof target !== "string" || target.length < 1 || target.length > 25) {
+        return res.status(400).json({ ok: false, message: "Invalid username" });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO friendships (requester_id, addressee_id, status)
+             SELECT me.id, a.id, 'pending'
+             FROM accounts me, accounts a
+             WHERE me.id = $1
+               AND LOWER(a.username) = LOWER($2)
+               AND a.id <> me.id
+               AND NOT EXISTS (
+                 SELECT 1 FROM friendships f
+                 WHERE (f.requester_id = me.id AND f.addressee_id = a.id)
+                    OR (f.requester_id = a.id AND f.addressee_id = me.id)
+             )`,
+            [req.session.accountId, target]
+        );
+
+        // rowCount 0 = no such user, yourself, or a friendship/request already exists
+        res.json({ ok: result.rowCount === 1 });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not send request" });
+    }
+});
+
+// Accept or decline an incoming friend request.
+// The request row already exists (requester -> me), so this updates its status.
+app.post("/api/friends/respond", authMiddleware, async (req, res) => {
+    const { username, action } = req.body || {};
+    const status = action === "accept" ? "accepted"
+        : action === "decline" ? "declined"
+            : null;
+    if (typeof username !== "string" || username.length < 1 || username.length > 25 || !status) {
+        return res.status(400).json({ ok: false, message: "Invalid request" });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE friendships f
+             SET status = $3
+                 FROM accounts r
+             WHERE r.id = f.requester_id
+               AND LOWER(r.username) = LOWER($2)
+               AND f.addressee_id = $1
+               AND f.status = 'pending'`,
+            [req.session.accountId, username, status]
+        );
+        res.json({ ok: result.rowCount === 1, status });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not update request" });
+    }
+});
 
 // "/" goes to the home page (logged-out users get bounced to login by requireLogin)
 app.get("/", requireLogin, (req, res) => {
