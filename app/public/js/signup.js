@@ -54,7 +54,7 @@ button.addEventListener("click", () => {
         message.textContent = result.data.message;
 
         if (result.status >= 200 && result.status < 300) {
-            window.location.href = "/index";
+            window.location.href = `/collections/${encodeURIComponent(result.data.username)}`;
         }
     }).catch((error) => {
         console.error(error);

@@ -24,10 +24,10 @@ button.addEventListener("click", () => {
             data: data
         }));
     }).then((result) => {
-        message.textContent = result.data.message;
-
         if (result.status >= 200 && result.status < 300) {
-            window.location.href = "/index";
+            window.location.href = `/collections/${encodeURIComponent(result.data.username)}`;
+        } else {
+            message.textContent = result.data.message;
         }
     }).catch((error) => {
         console.log(error);

@@ -22,7 +22,6 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 const LOGIN_PAGE = "/src/login.html";
-const HOME_PAGE = "/index";
 const IMAGE_DIR = path.join(__dirname, "public", "images");
 
 app.set("view engine", "ejs");
@@ -72,7 +71,6 @@ function requireLogin(req, res, next) {
 }
 
 const pages = {
-    index:           { view: "index",        title: "Home" },
     auctions:        { view: "auctions",     title: "Auctions" },
     trade:           { view: "trade",        title: "Trade" },
     friends:         { view: "friends",      title: "Friends" },
@@ -223,7 +221,7 @@ app.post("/login", async (req, res) => {
             res,
             createSession(account.id, account.username, account.profile_pic_id)
         );
-        return res.status(200).json({ message: "Login successful" });
+        return res.status(200).json({ message: "Login successful", username: account.username });
     } catch (error) {
         console.error("Login database error:", error);
         return res.status(500).json({ message: "Something went wrong" });
@@ -327,8 +325,18 @@ app.post("/auctionItemView", authMiddleware, async (req, res) => {
     }
 });
 
+app.get("/collections/:username", requireLogin, (req, res) => {
+    if (req.params.username.toLowerCase() !== req.session.username.toLowerCase()) {
+        return res.redirect(`/collections/${encodeURIComponent(req.session.username)}`);
+    }
+    res.render("collections", { active: "collections" });
+});
+
+
 // "/" goes to the home page (logged-out users get bounced to login by requireLogin)
-app.get("/", (req, res) => res.redirect(HOME_PAGE));
+app.get("/", requireLogin, (req, res) => {
+    res.redirect(`/collections/${encodeURIComponent(req.session.username)}`);
+});
 
 // page routes (registered last)
 Object.entries(pages).forEach(([route, { view, title }]) => {
