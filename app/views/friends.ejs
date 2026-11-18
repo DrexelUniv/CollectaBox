@@ -2,12 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Friends Page</title>
+    <link rel="stylesheet" href="/style/friends.css" />
     <link rel="stylesheet" href="/style/style.css" />
 </head>
 <body>
-    <!-- Universal Navigation Bar-->
-    <%- include("navbar", { active }) %>
-    <p>This is the friends page</p>
+<!-- Universal Navigation Bar-->
+<%- include("navbar", { active }) %>
+
+<main>
+    <form id="search-form" class="search" role="search">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="10"/><path d="M22 22l7 7"/></svg>
+        <input
+                type="search"
+                id="search-input"
+                placeholder="Search by username"
+                autocomplete="off"
+                aria-label="Search by username"
+        />
+    </form>
+
+    <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="friends">My Friends</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="pending">Pending Requests<span class="badge" id="pendingCount">0</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="add">Add Friends</button>
+    </div>
+
+    <section class="grid" id="grid" aria-live="polite"></section>
+</main>
+
+<script src="/js/friends.js" defer></script>
 </body>
 </html>

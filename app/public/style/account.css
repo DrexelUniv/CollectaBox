@@ -1,61 +1,105 @@
+:root {
+    /* same palette as friends.css; delete this block if your pages already share one */
+    --pink: #f8b4c4;
+    --peach: #fad0a9;
+    --mauve: #e1b0d2;
+    --periwinkle: #a1bde0;
+    --mint: #9ed6c9;
+    --butter: #eeebb9;
+    --sky: #96d7ee;
+    --lavender: #b0a6d1;
+    --salmon: #f9b1a5;
+    --green: #bddfba;
+
+    --bg: #fffdfc;
+    --ink: #4a3f6b;
+    --muted: #5e5478;
+    --focus: #6b52c9;
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+}
+
 #profile-header {
     display: flex;
     align-items: center;
-    gap: 28px; 
-    padding: 32px; 
+    gap: 28px;
+    padding: 32px;
 }
 
-.pfp-image{
+.pfp-image {
     width: 90px;
-    height: 90px; 
+    height: 90px;
 
     border-radius: 50%;
     object-fit: cover;
-    background-color: lightgray;
-
+    background-color: var(--sky);
+    box-shadow: 0 0 0 4px var(--pink);
 }
 
-#user-name{
-    font-size: 20px; 
+#user-name {
+    font-size: 20px;
     margin-bottom: 2px;
+    color: var(--ink);
 }
 
-#email{
-   font-size: 16px;
-   margin-bottom: 4px; 
+#email {
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: var(--muted);
 }
 
-#bio{
+#bio {
     font-size: 10px;
+    color: var(--muted);
 }
 
 #profile-navigation h2 {
-  font-size:20px; 
-  margin-bottom: 16px;
-  letter-spacing: 0.5px;
-  margin-left:4px; 
+    font-size: 20px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+    color: var(--ink);
 }
 
 #profile-navigation ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 #profile-navigation li a {
-  display: block;
-  padding: 14px 18px;
-  text-decoration: none;
-  border: 1px solid gainsboro;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.2s ease;
+    --tint: var(--pink);
+    display: block;
+    padding: 14px 18px;
+    text-decoration: none;
+    color: var(--ink);
+    background: var(--tint);
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
+/* links cycle through the palette */
+#profile-navigation li:nth-child(5n+1) a { --tint: var(--pink); }
+#profile-navigation li:nth-child(5n+2) a { --tint: var(--peach); }
+#profile-navigation li:nth-child(5n+3) a { --tint: var(--mauve); }
+#profile-navigation li:nth-child(5n+4) a { --tint: var(--periwinkle); }
+#profile-navigation li:nth-child(5n)   a { --tint: var(--mint); }
+
 #profile-navigation li a:hover {
-  border-color: lightgray;
-  color: #0f172a;
-  transform: translateX(4px);
+    border-color: var(--lavender);
+    color: #2f2750;
+    transform: translateX(4px);
+    filter: brightness(.96);
+}
+
+#profile-navigation li a:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
 }

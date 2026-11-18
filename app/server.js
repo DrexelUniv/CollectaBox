@@ -9,12 +9,11 @@ const sharp = require("sharp");
 
 const { hashPassword, validatePassword } = require("./passwordUtil");
 const {
-    createSession,
-    setSessionCookie,
-    getSession,
+    startSession,
     deleteSession,
     clearSessionCookie,
     authMiddleware,
+    requireLogin: makeRequireLogin,
     startTokenCleanup
 } = require("./sessionUtil");
 
@@ -22,8 +21,12 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 const LOGIN_PAGE = "/src/login.html";
-const HOME_PAGE = "/index";
 const IMAGE_DIR = path.join(__dirname, "public", "images");
+
+// Page middleware: redirects to login instead of returning JSON,
+// and exposes the session as `user` in every EJS template.
+// (API routes use authMiddleware, which returns a JSON 403.)
+const requireLogin = makeRequireLogin(LOGIN_PAGE);
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
@@ -56,32 +59,30 @@ function profilePicPath(id) {
     return path.join(IMAGE_DIR, `profile_${id}.png`);
 }
 
+// public URL of a profile picture (files are saved by profilePicPath above
+// and served by express.static), or null so the page shows an initials circle
+function profilePicUrl(id) {
+    return id ? `/images/profile_${id}.png` : null;
+}
+
 app.use(express.json());
 app.use(cookieParser());
 startTokenCleanup();
 app.use(express.static(path.join(__dirname, "public")));
 
-// Page middleware: redirects to login instead of returning JSON,
-// and exposes the session as `user` in every EJS template.
-function requireLogin(req, res, next) {
-    const session = getSession(req.cookies && req.cookies.token);
-    if (!session) return res.redirect(LOGIN_PAGE);
-    req.session = session;
-    res.locals.user = session;
-    next();
-}
-
 const pages = {
-    index:           { view: "index",        title: "Home" },
     auctions:        { view: "auctions",     title: "Auctions" },
     trade:           { view: "trade",        title: "Trade" },
-    friends:         { view: "friends",      title: "Friends" },
     notifications:   { view: "notif",        title: "Notifications" },
     listings:        { view: "listings",     title: "My Listings" },
     settings:        { view: "settings",     title: "Settings" },
     itemView:        { view: "item-view",    title: "Item View" },
     auctionItemView: { view: "auction-view", title: "Auction Item View" }
 };
+
+// ---------------------------------------------------------------------------
+// signup
+// ---------------------------------------------------------------------------
 
 // signup (multipart form: text fields + optional profile_pic file)
 app.post("/signup", (req, res, next) => {
@@ -139,8 +140,8 @@ app.post("/signup", (req, res, next) => {
             [username, email, hashedPassword, picId]
         );
 
-        // log the new user in right away
-        setSessionCookie(res, createSession(inserted.rows[0].id, username, picId));
+        // log the new user in right away (replaces any existing session)
+        startSession(req, res, inserted.rows[0].id, username, picId);
         return res.status(200).json({ message: "Account Created!" });
     } catch (error) {
         console.error(error);
@@ -163,7 +164,10 @@ app.post("/signup", (req, res, next) => {
     }
 });
 
+// ---------------------------------------------------------------------------
 // account
+// ---------------------------------------------------------------------------
+
 app.get("/account", requireLogin, async (req, res) => {
     try {
         const result = await pool.query(
@@ -185,7 +189,10 @@ app.get("/account", requireLogin, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
 // login
+// ---------------------------------------------------------------------------
+
 app.post("/login", async (req, res) => {
     const { username, password } = req.body || {};
 
@@ -219,18 +226,19 @@ app.post("/login", async (req, res) => {
             return res.status(401).json({ message: "Invalid username or password" });
         }
 
-        setSessionCookie(
-            res,
-            createSession(account.id, account.username, account.profile_pic_id)
-        );
-        return res.status(200).json({ message: "Login successful" });
+        // replaces any existing session so old tokens don't pile up
+        startSession(req, res, account.id, account.username, account.profile_pic_id);
+        return res.status(200).json({ message: "Login successful", username: account.username });
     } catch (error) {
         console.error("Login database error:", error);
         return res.status(500).json({ message: "Something went wrong" });
     }
 });
 
-// reset password
+// ---------------------------------------------------------------------------
+// reset-password
+// ---------------------------------------------------------------------------
+
 // NOTE: still unauthenticated. Anyone who knows an email can change that
 // account's password. Add an emailed token or require login before launch.
 app.post("/reset-password", async (req, res) => {
@@ -265,12 +273,19 @@ app.post("/reset-password", async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
 // logout
+// ---------------------------------------------------------------------------
+
 app.post("/logout", (req, res) => {
     deleteSession(req.cookies && req.cookies.token);
     clearSessionCookie(res);
     res.redirect(LOGIN_PAGE);
 });
+
+// ---------------------------------------------------------------------------
+// sessions
+// ---------------------------------------------------------------------------
 
 // current user info for client-side scripts
 app.get("/api/session", authMiddleware, (req, res) => {
@@ -280,7 +295,10 @@ app.get("/api/session", authMiddleware, (req, res) => {
     });
 });
 
-// item catalog
+// ---------------------------------------------------------------------------
+// items
+// ---------------------------------------------------------------------------
+
 app.get("/items", authMiddleware, async (req, res) => {
     try {
         const result = await pool.query(
@@ -314,6 +332,10 @@ app.post("/itemView", authMiddleware, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// auction
+// ---------------------------------------------------------------------------
+
 // place a bid (placeholder: bidder comes from the session, never from the body)
 app.post("/auctionItemView", authMiddleware, async (req, res) => {
     try {
@@ -327,8 +349,243 @@ app.post("/auctionItemView", authMiddleware, async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// collections (home page)
+// ---------------------------------------------------------------------------
+
+// collections page: your own, or an accepted friend's
+app.get("/collections/:username", requireLogin, async (req, res) => {
+    const me = req.session.username;
+    const target = req.params.username;
+
+    if (target.toLowerCase() === me.toLowerCase()) {
+        return res.render("collections", { active: "collections", owner: me, isOwner: true });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT a.username
+             FROM accounts a
+                      JOIN friendships f
+                           ON (f.requester_id = $1 AND f.addressee_id = a.id)
+                               OR (f.addressee_id = $1 AND f.requester_id = a.id)
+             WHERE LOWER(a.username) = LOWER($2)
+               AND f.status = 'accepted'`,
+            [req.session.accountId, target]
+        );
+
+        // not a friend (or no such user): send them back to their own page
+        if (result.rows.length === 0) {
+            return res.redirect(`/collections/${encodeURIComponent(me)}`);
+        }
+
+        res.render("collections", {
+            active: "collections",
+            owner: result.rows[0].username,
+            isOwner: false
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Could not load collection");
+    }
+});
+
+// ---------------------------------------------------------------------------
+// friends
+// ---------------------------------------------------------------------------
+
+// Page: plain /friends redirects to /friends/<your username>
+app.get("/friends", requireLogin, (req, res) => {
+    res.redirect(`/friends/${encodeURIComponent(req.session.username)}`);
+});
+
+// Page: same pattern as collections
+app.get("/friends/:username", requireLogin, (req, res) => {
+    if (req.params.username.toLowerCase() !== req.session.username.toLowerCase()) {
+        return res.redirect(`/friends/${encodeURIComponent(req.session.username)}`);
+    }
+    res.render("friends", { active: "friends" });
+});
+
+// Data for the My Friends and Pending Requests tabs
+app.get("/api/friends", authMiddleware, async (req, res) => {
+    const me = req.session.accountId;
+
+    try {
+        // Accepted friends: the other person in each friendship,
+        // whichever side sent the request
+        const friends = await pool.query(
+            `SELECT a.username, a.profile_pic_id
+             FROM friendships f
+                      JOIN accounts a
+                           ON a.id = CASE WHEN f.requester_id = $1
+                                              THEN f.addressee_id
+                                          ELSE f.requester_id END
+             WHERE (f.requester_id = $1 OR f.addressee_id = $1)
+               AND f.status = 'accepted'
+             ORDER BY a.username`,
+            [me]
+        );
+
+        // Incoming requests: people who requested me
+        const pending = await pool.query(
+            `SELECT a.username, a.profile_pic_id
+             FROM friendships f
+                      JOIN accounts a ON a.id = f.requester_id
+             WHERE f.addressee_id = $1
+               AND f.status = 'pending'
+             ORDER BY a.username`,
+            [me]
+        );
+
+        const shape = r => ({
+            username: r.username,
+            photo: profilePicUrl(r.profile_pic_id)
+        });
+
+        res.json({
+            friends: friends.rows.map(shape),
+            pending: pending.rows.map(shape)
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Could not load friends" });
+    }
+});
+
+// Add Friends tab. No search text: people you have no friendship or request
+// with yet, plus people you've already sent a request to (they stay on screen
+// as "Requested"). With search text: any account whose username matches, each
+// labelled with its relation to you.
+app.get("/api/accounts/search", authMiddleware, async (req, res) => {
+    const me = req.session.accountId;
+    const q = String(req.query.q || "").trim().slice(0, 25);
+
+    // escape LIKE wildcards so "_" and "%" are matched literally
+    const pattern = `%${q.replace(/[\\%_]/g, "\\$&")}%`;
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT a.username, a.profile_pic_id, f.status,
+                    (f.requester_id = $1) AS i_sent
+             FROM accounts a
+                      LEFT JOIN friendships f
+                                ON (f.requester_id = $1 AND f.addressee_id = a.id)
+                                    OR (f.addressee_id = $1 AND f.requester_id = a.id)
+             WHERE a.id <> $1
+               AND (($3::text = '' AND (f.status IS NULL
+                                       OR (f.status = 'pending' AND f.requester_id = $1)))
+                 OR ($3::text <> '' AND a.username ILIKE $2))
+             ORDER BY a.username
+                 LIMIT 30`,
+            [me, pattern, q]
+        );
+
+        res.json(rows.map(r => ({
+            username: r.username,
+            photo: profilePicUrl(r.profile_pic_id),
+            relation: r.status === "accepted" ? "friends"
+                : r.status === "pending" ? (r.i_sent ? "sent" : "received")
+                    : "none"
+        })));
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Search failed" });
+    }
+});
+
+// Send a friend request
+app.post("/api/friends/request", authMiddleware, async (req, res) => {
+    const target = req.body && req.body.username;
+    if (typeof target !== "string" || target.length < 1 || target.length > 25) {
+        return res.status(400).json({ ok: false, message: "Invalid username" });
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO friendships (requester_id, addressee_id, status)
+             SELECT me.id, a.id, 'pending'
+             FROM accounts me, accounts a
+             WHERE me.id = $1
+               AND LOWER(a.username) = LOWER($2)
+               AND a.id <> me.id
+               AND NOT EXISTS (
+                 SELECT 1 FROM friendships f
+                 WHERE (f.requester_id = me.id AND f.addressee_id = a.id)
+                    OR (f.requester_id = a.id AND f.addressee_id = me.id)
+             )`,
+            [req.session.accountId, target]
+        );
+
+        // rowCount 0 = no such user, yourself, or a friendship/request already exists
+        res.json({ ok: result.rowCount === 1 });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not send request" });
+    }
+});
+
+// Accept or decline an incoming friend request.
+// The request row already exists (requester -> me), so this updates its status.
+app.post("/api/friends/respond", authMiddleware, async (req, res) => {
+    const { username, action } = req.body || {};
+    const status = action === "accept" ? "accepted"
+        : action === "decline" ? "declined"
+            : null;
+    if (typeof username !== "string" || username.length < 1 || username.length > 25 || !status) {
+        return res.status(400).json({ ok: false, message: "Invalid request" });
+    }
+
+    try {
+        const result = await pool.query(
+            `UPDATE friendships f
+             SET status = $3
+                 FROM accounts r
+             WHERE r.id = f.requester_id
+               AND LOWER(r.username) = LOWER($2)
+               AND f.addressee_id = $1
+               AND f.status = 'pending'`,
+            [req.session.accountId, username, status]
+        );
+        // rowCount 0 = no pending request from that user
+        res.json({ ok: result.rowCount === 1, status });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not update request" });
+    }
+});
+
+// Cancel a friend request I sent (only while it is still pending).
+// Deleting the row also lets either side send a fresh request later.
+app.post("/api/friends/cancel", authMiddleware, async (req, res) => {
+    const target = req.body && req.body.username;
+    if (typeof target !== "string" || target.length < 1 || target.length > 25) {
+        return res.status(400).json({ ok: false, message: "Invalid username" });
+    }
+
+    try {
+        const result = await pool.query(
+            `DELETE FROM friendships f
+                 USING accounts a
+             WHERE a.id = f.addressee_id
+               AND LOWER(a.username) = LOWER($2)
+               AND f.requester_id = $1
+               AND f.status = 'pending'`,
+            [req.session.accountId, target]
+        );
+        // rowCount 0 = no pending request from me to that user
+        res.json({ ok: result.rowCount === 1 });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not cancel request" });
+    }
+});
+
+
 // "/" goes to the home page (logged-out users get bounced to login by requireLogin)
-app.get("/", (req, res) => res.redirect(HOME_PAGE));
+app.get("/", requireLogin, (req, res) => {
+    res.redirect(`/collections/${encodeURIComponent(req.session.username)}`);
+});
 
 // page routes (registered last)
 Object.entries(pages).forEach(([route, { view, title }]) => {
