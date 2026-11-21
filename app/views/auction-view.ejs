@@ -7,7 +7,9 @@
         <link rel="stylesheet" type="text/css" href="/style/item-view.css">
     </head>
     <body>
+        <!-- Universal Navigation Bar-->
         <%- include("navbar", { active }) %>
+        <div id="auction-page" data-auction-id="<%= auctionID %>"></div>        
         <main>
             <div class="breadcrumb">
                 breadcrumb placeholder
@@ -16,20 +18,32 @@
             <div class="item-container">
                 <!-- left: item img --> 
                 <div class="item-img">
-                    <img id="image" src="/images/placeholder.png" alt="Item Image">
+                    <img id="image" src="<%= itemDetails.image %>" alt="Item Image">
                 </div>
 
                 <!-- right: bid info and buttons -->
                 <div class="item-info">
-                    <h1 id="item-name">Item Name</h1>
+                    <h1><%= itemDetails.name %></h1>
 
                     <div class="bid-detail">
-                        <p id="seller-user">Listed By @username</p>
+                        <p>Listed By @<%= auction.seller_username %></p>
                         <p> Current Highest bid</p>
-                        <h1 id="curr-price">$8.00</h1>
+                        <%
+                            const displayPrice = Math.max(
+                                Number(auction.current_highest_bid),
+                                Number(auction.starting_price)
+                            );
+                        %>
+
+                        <h1 id="curr-price">
+                            <%= displayPrice.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD"
+                            }) %>
+                        </h1>
                         <div>
                             <h3>Place Your Bid</h3>
-                            <input class="bid-amount" type="number" min="0.01" step="0.1" inputmode="decimal" placeholder="0.00" required>
+                            <input class="bid-amount" type="number" min="0.50" step="0.1" inputmode="decimal" placeholder="0.00" required>
                         </div>
                         <div id="message"></div>
                     </div>
@@ -52,8 +66,7 @@
                 <p id="item-desc">Item Description</p>
             </div>
         </main> 
-        <script
-            src="/js/auction-view.js">
-        </script>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/js/auction-view.js"></script>
     </body>
 </html>
