@@ -1,11 +1,45 @@
+:root {
+    /* same palette as friends.css; delete this block if your pages already share one */
+    --pink: #f8b4c4;
+    --peach: #fad0a9;
+    --mauve: #e1b0d2;
+    --periwinkle: #a1bde0;
+    --mint: #9ed6c9;
+    --butter: #eeebb9;
+    --sky: #96d7ee;
+    --lavender: #b0a6d1;
+    --salmon: #f9b1a5;
+    --green: #bddfba;
+
+    --bg: #fffdfc;
+    --ink: #4a3f6b;
+    --muted: #5e5478;
+    --focus: #6b52c9;
+}
+
+body {
+    background: var(--bg);
+    color: var(--ink);
+}
+
 .go-back {
     display: inline-flex;
     align-items: center;
     gap: 10px;
     text-decoration: none;
-    color: #222222;
+    color: var(--ink);
     font-size: 16px;
     font-weight: 500;
+}
+
+.go-back:hover {
+    color: var(--focus);
+}
+
+.go-back:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 
@@ -15,6 +49,7 @@
     justify-content: center;
     gap: 14px;
     margin-bottom: 40px;
+    color: var(--ink);
 }
 .settings-options {
     width: 100%;
@@ -26,29 +61,71 @@
     gap: 12px;
 }
 .option-row {
-  display: block;
-  box-sizing: border-box;
-  background: transparent;
-  padding: 14px 18px;
-  text-decoration: none;
-  border: 1px solid gainsboro;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  margin-top: 6px;
+    --tint: var(--pink);
+    display: block;
+    box-sizing: border-box;
+    background: var(--tint);
+    color: var(--ink);
+    padding: 14px 18px;
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-top: 6px;
 }
 
+/* rows cycle through the palette */
+.option-row:nth-child(5n+1) { --tint: var(--pink); }
+.option-row:nth-child(5n+2) { --tint: var(--peach); }
+.option-row:nth-child(5n+3) { --tint: var(--mauve); }
+.option-row:nth-child(5n+4) { --tint: var(--periwinkle); }
+.option-row:nth-child(5n)   { --tint: var(--mint); }
+
 .option-row:hover {
-  border-color: lightgray;
-  color: #0f172a;
-  transform: translateX(4px);
+    border-color: var(--lavender);
+    color: #2f2750;
+    transform: translateX(4px);
+    filter: brightness(.96);
+}
+
+.option-row:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
 }
 
 .logout-container{
     margin-top:36px;
     display:flex;
     justify-content:center;
+}
+
+/* logout control (button or link inside the container) */
+.logout-container button,
+.logout-container a {
+    background: var(--salmon);
+    color: #7a2a30;
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font: inherit;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+}
+
+.logout-container button:hover,
+.logout-container a:hover {
+    filter: brightness(.95);
+    transform: translateY(-2px);
+}
+
+.logout-container button:focus-visible,
+.logout-container a:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
 }
 
 .window {
@@ -60,7 +137,7 @@
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.4);
+    background-color: rgba(74, 63, 107, 0.45);
 }
 .window.show {
     display: block;
@@ -68,12 +145,15 @@
 
 
 .window-content {
-    background-color: rgb(236, 235, 235);
+    background-color: var(--bg);
+    color: var(--ink);
     margin: 15% auto;
     padding: 20px;
-    border: 1px solid #888;
+    border: 3px solid var(--pink);
     width: 400px;
-    border-radius: 8px;
+    max-width: calc(100% - 32px);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(74, 63, 107, 0.25);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -82,7 +162,7 @@
 
 /* The Close Button */
 .close {
-    color: #aaa;
+    color: var(--muted);
     align-self: flex-end;
     font-size: 14px;
     font-weight: bold;
@@ -91,14 +171,16 @@
 
 .close:hover,
 .close:focus {
-    color: black;
+    color: var(--ink);
     text-decoration: none;
 }
 
 .pfp-circle {
     width: 80px;
     height: 80px;
-    background: lightgray;
+    background: var(--sky);
+    color: var(--ink);
+    box-shadow: 0 0 0 4px var(--pink);
     border-radius: 50%;
     display: flex;
     align-items: center;

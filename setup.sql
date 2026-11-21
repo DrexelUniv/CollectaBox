@@ -11,22 +11,31 @@ CREATE TABLE IF NOT EXISTS accounts (
 -- Catalog of item types
 CREATE TABLE IF NOT EXISTS items (
     id serial PRIMARY KEY,
-    name varchar(25) NOT NULL,
-    brand varchar(25),
-    series varchar(25),
-    quality varchar(25)
+    name varchar(150) NOT NULL,
+    brand varchar(100),
+    series varchar(150),
+    quality varchar(25),
+    image TEXT,
+    rarity varchar(25)
 );
 
--- Extend item fields for collectible catalog data
-ALTER TABLE items
-    ALTER COLUMN name TYPE varchar(150),
-    ALTER COLUMN brand TYPE varchar(100),
-    ALTER COLUMN series TYPE varchar(150);
+CREATE TABLE IF NOT EXISTS friendships (
+                                           id           serial PRIMARY KEY,
+                                           requester_id integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                                           addressee_id integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                                           status       varchar(10) NOT NULL DEFAULT 'pending'
+                                               CHECK (status IN ('pending', 'accepted', 'blocked')),
+                                           created_at   timestamptz NOT NULL DEFAULT now(),
+                                           responded_at timestamptz,
+                                           CHECK (requester_id <> addressee_id)
+);
 
-ALTER TABLE items
-    ADD COLUMN IF NOT EXISTS image TEXT,
-    ADD COLUMN IF NOT EXISTS rarity varchar(25);
+-- one row per pair, regardless of who sent the request
+CREATE UNIQUE INDEX IF NOT EXISTS uq_friendship_pair
+    ON friendships (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id));
 
+CREATE INDEX IF NOT EXISTS idx_friendships_addressee ON friendships(addressee_id, status);
+CREATE INDEX IF NOT EXISTS idx_friendships_requester ON friendships(requester_id, status);
 
 -- The many-to-many: one row = one owned copy of an item
 CREATE TABLE IF NOT EXISTS collection_items (
