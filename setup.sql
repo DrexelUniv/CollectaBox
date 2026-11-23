@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS auctions (
                                         seller_id           integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
                                         starting_price      numeric NOT NULL CHECK (starting_price >= 0),
                                         current_highest_bid numeric NOT NULL DEFAULT 0 CHECK (current_highest_bid >= 0),
+                                        current_highest_bidder_id integer REFERENCES accounts(id),
                                         start_time          timestamptz NOT NULL DEFAULT now(),
                                         end_time            timestamptz NOT NULL,
                                         status              varchar(10) NOT NULL DEFAULT 'open'

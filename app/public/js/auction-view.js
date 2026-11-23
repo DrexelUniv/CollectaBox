@@ -1,6 +1,9 @@
-let img = document.getElementById("image");
-let itemName = document.getElementById("item-name");
-let sellerUser = document.getElementById("seller-user");
+const socket = io();
+
+// let's frontend know what page to display
+const auctionID = document.getElementById("auction-page").dataset.auctionId;
+
+// page elements
 let currPrice = document.getElementById("curr-price");
 let bidButton = document.querySelector(".place-bid");
 let buyButton = document.querySelector(".buy-now");
@@ -12,15 +15,30 @@ let message = document.getElementById("message");
 bidButton.addEventListener("click", async () => {
     message.textContent = "";
 
+    const currentPrice = Number(
+        currPrice.textContent.replace(/[$,]/g, "")
+    );
+
     const bid = Number(bidAmount.value);
 
+    if (bid < currentPrice + 0.50) {
+        message.textContent = `Your big must be a least $${(currentPrice + 0.50).toFixed(2)}`;
+        return;
+    }
+
+    // disable button temporarily 
+    bidButton.disabled = true;
+    bidButton.textContent = "Placing bid...";
+
     try {
-        const response = await fetch("/auctionItemView", {
+        const response = await fetch(`/auctionItemView/${auctionID}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ bid })
+            body: JSON.stringify({ 
+                bidAmount: bid,
+            })
         });
 
         const data = await response.json();
@@ -34,10 +52,28 @@ bidButton.addEventListener("click", async () => {
     } catch (error) {
         console.error(error);
         message.textContent = error.message || "Something went wrong";
+    } finally {
+        bidButton.disabled = false;
+        bidButton.textContent = "Place Bid";
     }
 });
 
 // placeholder, unsure if we'll implement buyout feature
 buyButton.addEventListener("click", () => {
-    //TODO
+    // TODO: send buyout info?
+});
+
+// update displayed price
+socket.on("newBid", (data) => {
+    console.log("New bid:", data)
+    const newPrice = data.newPrice.toLocaleString("en-US", { 
+        style: "currency", 
+        currency: "USD" 
+    });
+
+    currPrice.textContent = newPrice;
+});
+
+socket.emit("joinAuction", {
+    auctionID: auctionID,
 });

@@ -6,6 +6,8 @@ const crypto = require("crypto");
 const cookieParser = require("cookie-parser");
 const multer = require("multer");
 const sharp = require("sharp");
+const { Server } = require("socket.io")
+const { createServer } = require("http");
 
 const { hashPassword, validatePassword } = require("./passwordUtil");
 const {
@@ -19,6 +21,9 @@ const {
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+const server = createServer(app);
+const io = new Server(server);
 
 const LOGIN_PAGE = "/src/login.html";
 const IMAGE_DIR = path.join(__dirname, "public", "images");
@@ -71,7 +76,6 @@ startTokenCleanup();
 app.use(express.static(path.join(__dirname, "public")));
 
 const pages = {
-    auctions:        { view: "auctions",     title: "Auctions" },
     trade:           { view: "trade",        title: "Trade" },
     notifications:   { view: "notif",        title: "Notifications" },
     listings:        { view: "listings",     title: "My Listings" },
@@ -337,16 +341,166 @@ app.post("/itemView", authMiddleware, async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // place a bid (placeholder: bidder comes from the session, never from the body)
-app.post("/auctionItemView", authMiddleware, async (req, res) => {
+app.post("/auctionItemView/:auctionID", authMiddleware, async (req, res) => {
     try {
-        const { bid } = req.body || {};
-        console.log(`Bid from account ${req.session.accountId}:`, bid);
+        const { bidAmount } = req.body || {};
+        const auctionId = req.params.auctionID;
+        const bidderId = req.session.accountId;
+        
 
-        res.status(200).json({ success: true, message: "Place bid placeholder" });
+        const auctionInfo = await pool.query(
+            `SELECT current_highest_bid, seller_id FROM auctions WHERE id = $1`,
+            [auctionId]
+        );
+
+        if (auctionInfo.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "404: Auction not found" });
+        }
+
+        console.log(`Bid from account ${bidderId}:`, bidAmount);
+
+        // validate bid
+        if (Number(bidderId) === Number(auctionInfo.rows[0].seller_id)) {
+            return res.status(400).json({ success: false, message: "Cannot bid on your own auction listing" });
+        }
+
+        if (!Number.isFinite(bidAmount) || bidAmount < 0.01 || bidAmount <= auctionInfo.rows[0].current_highest_bid) {
+            return res.status(400).json({ success: false, message: "Invalid bid amount" });
+        }
+
+        // TOOD: update db with new bid
+        const updatedPrice = await pool.query (
+            `UPDATE auctions 
+            SET current_highest_bid = $1, 
+                current_highest_bidder_id = $2
+            WHERE id= $3 
+                AND current_highest_bid + 0.50 <= $1
+                AND status = 'open'
+                AND end_time > NOW()
+            RETURNING current_highest_bid`,
+            [bidAmount, bidderId, auctionId]
+        );
+
+        // check row count before updating page
+        if (updatedPrice.rowCount === 0) {
+            return res.status(409).json({ success: false, message: "Bid not accepted. The auction may have ended or someone placed a higher bid" })
+        }
+
+        // after successful db update:
+        io.to(String(auctionId)).emit("newBid", {
+            newPrice: updatedPrice.rows[0].current_highest_bid
+        })
+
+        res.status(200).json({ success: true, message: "Bid placed successfully" });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Failed to place bid." });
     }
+});
+
+// connect to live auction
+app.get("/auctionItemView/:auctionID", requireLogin, async (req, res) => {
+    const auctionID = req.params.auctionID;
+
+    try {
+        const results = await pool.query(
+          `SELECT
+                a.id AS auction_id,
+                a.starting_price,
+                a.current_highest_bid,
+                a.current_highest_bidder_id,
+                a.end_time,
+                a.status,
+
+                ci.item_id,
+
+                i.name AS item_name,
+                i.brand AS item_brand,
+                i.series AS item_series,
+                i.quality AS item_quality,
+                i.image AS item_image,
+                i.rarity AS item_rarity,
+
+                ac.username AS seller_username
+
+            FROM auctions a
+            JOIN collection_items ci ON a.collection_item_id = ci.id
+            JOIN items i ON ci.item_id = i.id
+            JOIN accounts ac ON a.seller_id = ac.id
+            WHERE a.id = $1;`,
+          [auctionID]  
+        );
+
+        // validate auction's existence
+        if (results.rows.length === 0) {
+            return res.status(404).json({ success: false, message: "404: Auction not found" });
+        }
+
+        const row = results.rows[0]; 
+
+        const auctionDetails = {
+            id: row.auction_id,
+            seller_username: row.seller_username,
+            starting_price: row.starting_price,
+            current_highest_bid: row.current_highest_bid,
+            current_highest_bidder_id: row.current_highest_bidder_id,
+            end_time: row.end_time,
+            status: row.status
+        };
+
+        const itemDetails = {
+            id: row.item_id,
+            name: row.item_name,
+            brand: row.item_brand,
+            series: row.item_series,
+            quality: row.item_quality,
+            image: row.item_image,
+            rarity: row.item_rarity
+        }
+
+        res.render("auction-view", {
+            active: "auctionItemView",
+            auctionID: auctionDetails.id,
+            auction: auctionDetails,
+            itemDetails: itemDetails
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+    
+})
+
+// ---------------------------------------------------------------------------
+// WebSockets (Live Auction)
+// ---------------------------------------------------------------------------
+io.on("connection", (socket) => {
+    console.log("socket.id", socket.id);
+
+    socket.on("joinAuction", async (data) => {
+        try {    const auctionID = Number(data?.auctionID);
+
+            // validate auction existence
+            if (!Number.isSafeInteger(auctionID) || auctionID <= 0) {
+                return;
+            }
+
+            const result = await pool.query(
+                "SELECT id FROM auctions WHERE id = $1",
+                [auctionID]
+            );
+
+            if (results.rows.length === 0) {
+                return;
+            }
+
+            socket.join(String(auctionID));
+        } catch (error) {
+            console.error("Could not join auction:", error);
+        }
+
+    });
 });
 
 // ---------------------------------------------------------------------------
@@ -708,6 +862,6 @@ Object.entries(pages).forEach(([route, { view, title }]) => {
     });
 });
 
-app.listen(port, "0.0.0.0", () => {
+server.listen(port, "0.0.0.0", () => {
     console.log(`Listening on port ${port}`);
 });
