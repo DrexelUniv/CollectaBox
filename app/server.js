@@ -390,6 +390,114 @@ app.get("/collections/:username", requireLogin, async (req, res) => {
     }
 });
 
+app.get("/api/collections/:username", authMiddleware, async (req, res) => {
+    const myId = req.session.accountId;
+    const target = req.params.username;
+
+    try {
+        const owner = await pool.query(
+            `SELECT a.id
+             FROM accounts a
+             WHERE LOWER(a.username) = LOWER($2)
+               AND (a.id = $1
+                 OR EXISTS (
+                     SELECT 1 FROM friendships f
+                     WHERE f.status = 'accepted'
+                       AND ((f.requester_id = $1 AND f.addressee_id = a.id)
+                         OR (f.addressee_id = $1 AND f.requester_id = a.id))
+                 ))`,
+            [myId, target]
+        );
+
+        if (owner.rows.length === 0) {
+            return res.status(404).json({ message: "Collection not found" });
+        }
+
+        const result = await pool.query(
+            `SELECT i.id, i.name, i.brand, i.series, i.image, i.rarity,
+                    COUNT(*)::int AS quantity
+             FROM collection_items ci
+                      JOIN items i ON i.id = ci.item_id
+             WHERE ci.account_id = $1
+             GROUP BY i.id
+             ORDER BY i.brand, i.series, i.name`,
+            [owner.rows[0].id]
+        );
+
+        res.json({ items: result.rows });
+    } 
+    catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Could not load collection" });
+    }
+});
+
+const LIST_TABLES = { favorites: "favorites", wishlist: "wishlist_items" };
+
+app.get("/api/:list(favorites|wishlist)", authMiddleware, async (req, res) => {
+    const table = LIST_TABLES[req.params.list];
+
+    try {
+        const result = await pool.query(
+            `SELECT i.id, i.name, i.brand, i.series, i.image, i.rarity
+             FROM ${table} l
+                      JOIN items i ON i.id = l.item_id
+             WHERE l.account_id = $1
+             ORDER BY l.created_at DESC`,
+            [req.session.accountId]
+        );
+        res.json({ items: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Could not load list" });
+    }
+});
+
+app.post("/api/:list(favorites|wishlist)", authMiddleware, async (req, res) => {
+    const table = LIST_TABLES[req.params.list];
+    const itemID = Number.parseInt(req.body && req.body.itemID, 10);
+
+    if (!Number.isInteger(itemID)) {
+        return res.status(400).json({ ok: false, message: "Invalid item" });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO ${table} (account_id, item_id)
+             VALUES ($1, $2)
+             ON CONFLICT (account_id, item_id) DO NOTHING`,
+            [req.session.accountId, itemID]
+        );
+        res.json({ ok: true });
+    } catch (err) {
+        if (err.code === "23503") {
+            return res.status(404).json({ ok: false, message: "Item not found" });
+        }
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not add item" });
+    }
+});
+
+app.delete("/api/:list(favorites|wishlist)/:itemId", authMiddleware, async (req, res) => {
+    const table = LIST_TABLES[req.params.list];
+    const itemID = Number.parseInt(req.params.itemId, 10);
+
+    if (!Number.isInteger(itemID)) {
+        return res.status(400).json({ ok: false, message: "Invalid item" });
+    }
+
+    try {
+        const result = await pool.query(
+            `DELETE FROM ${table} WHERE account_id = $1 AND item_id = $2`,
+            [req.session.accountId, itemID]
+        );
+        res.json({ ok: result.rowCount === 1 });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ ok: false, message: "Could not remove item" });
+    }
+});
+
 // ---------------------------------------------------------------------------
 // friends
 // ---------------------------------------------------------------------------

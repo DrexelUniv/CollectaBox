@@ -24,9 +24,24 @@ collectionButton.addEventListener("click", () => {
 });
 
 // clicking "Add to Wishlist" button adds item to user's wishlist collection
-wishlistButton.addEventListener("click", () => {
+const itemId = new URLSearchParams(window.location.search).get("id");
+
+wishlistButton.addEventListener("click", async () => {
     //TODO
-})
+        try {
+        const response = await fetch("/api/wishlist", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemID: itemId })
+        });
+        if (!response.ok) throw new Error("request failed");
+        wishlistButton.lastChild.textContent = " On your wishlist"; // keeps the heart icon
+        wishlistButton.disabled = true;
+    } catch (err) {
+        console.error(err);
+        wishlistButton.lastChild.textContent = " Could not add. Try again";
+    }
+});
 
 // clicking "Put up for Auction pulls up auction form overlay"
 auctionButton.addEventListener("click", () => {

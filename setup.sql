@@ -72,3 +72,23 @@ CREATE TABLE IF NOT EXISTS bids (
                                     created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_auctions_seller ON auctions(seller_id);
+
+
+CREATE TABLE IF NOT EXISTS favorites (
+    id         serial PRIMARY KEY,
+    account_id integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    item_id    integer NOT NULL REFERENCES items(id)    ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (account_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_favorites_account ON favorites(account_id);
+
+
+CREATE TABLE IF NOT EXISTS wishlist_items (
+    id         serial PRIMARY KEY,
+    account_id integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    item_id    integer NOT NULL REFERENCES items(id)    ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (account_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS idx_wishlist_items_account ON wishlist_items(account_id);

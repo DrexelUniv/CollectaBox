@@ -2,12 +2,57 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Home Page</title>
         <link rel="stylesheet" href="/style/style.css" />
+        <link rel="stylesheet" href="/style/collections.css" />
     </head>
-    <body>
-        <!-- Universal Navigation Bar-->
+    <body data-owner="<%= owner %>" data-is-owner="<%= isOwner %>">
         <%- include("navbar", { active }) %>
-        <p>This is the home page (after logging in)</p>
+
+        <main class="home">
+            <!-- search and filter -->
+            <form id="search-form" class="search" role="search">
+                <svg class="search-icon" viewBox="0 0 32 32" aria-hidden="true"><circle cx="14" cy="14" r="10"/><path d="M22 22l7 7"/></svg>
+                <input type="search" id="search-input" autocomplete="off"
+                       placeholder="<%= isOwner ? 'Search my collection' : 'Search ' + owner + '\'s collection' %>"
+                       aria-label="Search collection" />
+                <button type="button" id="filter-btn" class="filter-btn" aria-label="Filter by rarity" aria-expanded="false">
+                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 6h24L18 17v9l-4 2V17z"/></svg>
+                </button>
+                <select id="rarity-filter" class="rarity-filter" aria-label="Rarity" hidden>
+                    <option value="">All rarities</option>
+                </select>
+            </form>
+
+            <!-- My Collection -->
+            <section class="shelf" id="shelf-collection">
+                <div class="shelf-head">
+                    <h2><%= isOwner ? 'My Collection' : owner + '\'s Collection' %></h2>
+                    <button type="button" class="shelf-link" data-toggle="collection">All Collections <span aria-hidden="true">&rarr;</span></button>
+                </div>
+                <div class="shelf-row" id="collection-row" aria-live="polite"></div>
+            </section>
+
+            <% if (isOwner) { %>
+            <section class="shelf" id="shelf-favorites">
+                <div class="shelf-head">
+                    <h2>Favorite Collections</h2>
+                    <button type="button" class="shelf-link" data-toggle="favorites">View All Favorites <span aria-hidden="true">&rarr;</span></button>
+                </div>
+                <div class="shelf-row" id="favorites-row"></div>
+            </section>
+
+            <section class="shelf" id="shelf-wishlist">
+                <div class="shelf-head">
+                    <h2>Wish List Items</h2>
+                    <button type="button" class="shelf-link" data-toggle="wishlist">All Wish List Items <span aria-hidden="true">&rarr;</span></button>
+                </div>
+                <div class="shelf-row" id="wishlist-row"></div>
+            </section>
+            <% } %>
+        </main>
+
+        <script src="/js/collections.js" defer></script>
     </body>
 </html>
